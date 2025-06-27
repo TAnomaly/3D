@@ -8,10 +8,11 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: #0f0f23;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
             color: white;
             margin: 0;
             padding: 20px;
+            min-height: 100vh;
         }
 
         .container {
@@ -24,28 +25,44 @@
             text-decoration: none;
             margin-bottom: 20px;
             display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(6, 214, 160, 0.2);
+            transform: translateX(-3px);
         }
 
         .title {
             color: #06d6a0;
             margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            font-size: 2.5rem;
+            font-weight: bold;
         }
 
         canvas {
-            background: #1a1a2e;
-            border-radius: 10px;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #0f0f23);
+            border-radius: 15px;
             width: 100% !important;
             height: 100% !important;
             display: block;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
         #canvas-container {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 2px solid rgba(6, 214, 160, 0.3);
+            border-radius: 15px;
             height: 600px;
             width: 100%;
             position: relative;
             overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(6, 214, 160, 0.1);
         }
 
         .grid-container {
@@ -56,26 +73,112 @@
         }
 
         .controls-panel {
-            background: rgba(255, 255, 255, 0.1);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 15px;
             overflow-y: auto;
             max-height: 100%;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         }
 
         .status {
-            background: rgba(6, 214, 160, 0.1);
+            background: linear-gradient(135deg, rgba(6, 214, 160, 0.2), rgba(99, 102, 241, 0.2));
             border: 1px solid #06d6a0;
-            border-radius: 5px;
-            padding: 10px;
+            border-radius: 10px;
+            padding: 12px;
             margin: 10px 0;
             font-size: 14px;
+            backdrop-filter: blur(10px);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px rgba(6, 214, 160, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(6, 214, 160, 0.6);
+            }
         }
 
         .error {
-            background: rgba(239, 68, 68, 0.1);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
             border-color: #ef4444;
-            color: #ef4444;
+            color: #fca5a5;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-group h4 {
+            color: #06d6a0;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            background: rgba(6, 214, 160, 0.1);
+            border: 2px dashed #06d6a0;
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            cursor: pointer;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        button {
+            background: linear-gradient(135deg, #06d6a0, #059669);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(6, 214, 160, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+
+        .btn-purple:hover {
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -92,38 +195,63 @@
 
         <div class="grid-container">
             <div class="controls-panel">
-                <h3>Kontroller</h3>
+                <h3 style="color: #06d6a0; text-align: center; margin-bottom: 20px;">🎨 Kontrol Paneli</h3>
 
-                <div style="margin-bottom: 20px;">
-                    <label>T-Shirt Rengi:</label><br>
+                <div class="control-group">
+                    <h4>🎽 T-Shirt Rengi</h4>
                     <input type="color" id="tshirt-color" value="#ffffff" onchange="setTshirtColor(this.value)">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px;">
+                        <div style="background: #ffffff; height: 30px; border-radius: 5px; cursor: pointer; border: 2px solid #ccc;"
+                            onclick="setTshirtColor('#ffffff')"></div>
+                        <div style="background: #000000; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#000000')"></div>
+                        <div style="background: #ef4444; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#ef4444')"></div>
+                        <div style="background: #3b82f6; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#3b82f6')"></div>
+                        <div style="background: #10b981; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#10b981')"></div>
+                        <div style="background: #8b5cf6; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#8b5cf6')"></div>
+                        <div style="background: #f59e0b; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#f59e0b')"></div>
+                        <div style="background: #ec4899; height: 30px; border-radius: 5px; cursor: pointer;"
+                            onclick="setTshirtColor('#ec4899')"></div>
+                    </div>
                 </div>
 
-                <div style="margin-bottom: 20px;">
-                    <label>Tasarım Yükle:</label><br>
+                <div class="control-group">
+                    <h4>🖼️ Tasarım Yükle</h4>
                     <input type="file" id="design-input" accept="image/*" onchange="loadDesign(this)">
+                    <div id="design-preview"
+                        style="margin-top: 10px; text-align: center; color: #06d6a0; font-size: 12px;"></div>
                 </div>
 
-                <div style="margin-bottom: 20px;">
-                    <label>Boyut: <span id="scale-value">1.0x</span></label><br>
+                <div class="control-group">
+                    <h4>📏 Tasarım Boyutu: <span id="scale-value" style="color: #06d6a0;">1.0x</span></h4>
                     <input type="range" id="design-scale" min="0.1" max="3.0" step="0.1" value="1.0"
                         oninput="updateDesignScale(this.value)">
                 </div>
 
-                <button onclick="exportImage()"
-                    style="background: #06d6a0; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
-                    💾 Kaydet
-                </button>
+                <div class="control-group">
+                    <h4>📍 Pozisyon Ayarları</h4>
+                    <label style="font-size: 12px;">Yatay: <span id="pos-x-value"
+                            style="color: #06d6a0;">0.0</span></label>
+                    <input type="range" id="design-x" min="-3" max="3" step="0.1" value="0"
+                        oninput="updateDesignPosition()">
 
-                <button onclick="resetDesign()"
-                    style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-                    🗑️ Sıfırla
-                </button>
+                    <label style="font-size: 12px;">Dikey: <span id="pos-y-value"
+                            style="color: #06d6a0;">0.0</span></label>
+                    <input type="range" id="design-y" min="-3" max="3" step="0.1" value="0"
+                        oninput="updateDesignPosition()">
+                </div>
 
-                <button onclick="testGLB()"
-                    style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%;">
-                    🔧 GLB Test
-                </button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;">
+                    <button onclick="exportImage()">💾 Kaydet</button>
+                    <button onclick="resetDesign()" class="btn-danger">🗑️ Sıfırla</button>
+                    <button onclick="testGLB()" class="btn-purple">🔧 Test</button>
+                    <button onclick="toggleAutoRotate()" class="btn-purple" id="rotate-btn">🔄 Döndür</button>
+                </div>
             </div>
 
             <div id="canvas-container">
@@ -300,49 +428,103 @@
             const file = input.files[0];
             if (!file) return;
 
-            updateStatus(`Tasarım yükleniyor: ${file.name}`);
+            updateStatus(`🎨 Tasarım yükleniyor: ${file.name}`);
 
             const reader = new FileReader();
             reader.onload = function (e) {
                 const img = new Image();
                 img.onload = function () {
+                    updateStatus('✨ Texture oluşturuluyor...');
+
+                    // Create high-quality texture
                     const texture = new THREE.Texture(img);
+                    texture.generateMipmaps = true;
+                    texture.minFilter = THREE.LinearMipmapLinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
+                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                    texture.wrapT = THREE.ClampToEdgeWrapping;
+                    texture.flipY = false; // Important for proper orientation
                     texture.needsUpdate = true;
 
+                    // Remove existing design
                     if (designMesh) {
                         if (designMesh.parent) {
                             designMesh.parent.remove(designMesh);
                         } else {
                             scene.remove(designMesh);
                         }
+                        designMesh = null;
                     }
 
-                    const geometry = new THREE.PlaneGeometry(5, 5);
-                    const material = new THREE.MeshBasicMaterial({
+                    // Calculate aspect ratio and size
+                    const aspectRatio = img.width / img.height;
+                    let width = 3.0;
+                    let height = 3.0;
+
+                    if (aspectRatio > 1) {
+                        height = width / aspectRatio;
+                    } else {
+                        width = height * aspectRatio;
+                    }
+
+                    // Create design geometry and material
+                    const geometry = new THREE.PlaneGeometry(width, height);
+                    const material = new THREE.MeshLambertMaterial({
                         map: texture,
-                        transparent: true
+                        transparent: true,
+                        alphaTest: 0.1,
+                        side: THREE.DoubleSide,
+                        opacity: 1.0
                     });
 
                     designMesh = new THREE.Mesh(geometry, material);
+                    designMesh.castShadow = true;
+                    designMesh.receiveShadow = false; // Design shouldn't receive shadows
 
+                    // Position design on T-shirt front
                     if (tshirt) {
                         tshirt.add(designMesh);
-                        designMesh.position.set(0, 0, 1.6);
-                        updateStatus(`✅ Tasarım T-shirt'e eklendi!`);
+                        // Position slightly in front of T-shirt surface
+                        designMesh.position.set(0, 0.5, 0.6); // Adjusted for better visibility
+                        designMesh.rotation.x = 0; // Keep flat
+                        designMesh.scale.set(1, 1, 1);
+                        updateStatus(`✅ Tasarım T-shirt'e yerleştirildi! ${width.toFixed(1)}x${height.toFixed(1)}`);
                     } else {
+                        // Fallback: add to scene if no T-shirt
                         scene.add(designMesh);
-                        designMesh.position.set(0, 0, 18);
-                        updateStatus(`✅ Tasarım sahneye eklendi!`);
+                        designMesh.position.set(0, 1, 5);
+                        updateStatus(`✅ Tasarım sahneye eklendi! (T-shirt bekleniyor)`);
                     }
+
+                    // Update UI preview
+                    const preview = document.getElementById('design-preview');
+                    if (preview) {
+                        preview.innerHTML = `✅ ${file.name}<br><small>Boyut: ${img.width}x${img.height}px</small>`;
+                    }
+
+                    // Log for debugging
+                    console.log('Design loaded:', {
+                        file: file.name,
+                        dimensions: `${img.width}x${img.height}`,
+                        aspectRatio: aspectRatio,
+                        meshSize: `${width.toFixed(2)}x${height.toFixed(2)}`,
+                        position: designMesh.position,
+                        parent: designMesh.parent ? 'T-shirt' : 'Scene'
+                    });
                 };
+
                 img.onerror = function () {
-                    updateStatus('❌ Resim yüklenemedi!', true);
+                    updateStatus('❌ Resim formatı desteklenmiyor!', true);
                 };
+
+                img.crossOrigin = 'anonymous'; // Avoid CORS issues
                 img.src = e.target.result;
             };
+
             reader.onerror = function () {
                 updateStatus('❌ Dosya okunamadı!', true);
             };
+
             reader.readAsDataURL(file);
         }
 
@@ -350,7 +532,25 @@
             document.getElementById('scale-value').textContent = value + 'x';
             if (designMesh) {
                 designMesh.scale.setScalar(parseFloat(value));
-                updateStatus(`Tasarım boyutu: ${value}x`);
+                updateStatus(`📏 Tasarım boyutu: ${value}x`);
+            }
+        }
+
+        function updateDesignPosition() {
+            const x = parseFloat(document.getElementById('design-x').value || 0);
+            const y = parseFloat(document.getElementById('design-y').value || 0);
+
+            const xEl = document.getElementById('pos-x-value');
+            const yEl = document.getElementById('pos-y-value');
+
+            if (xEl) xEl.textContent = x.toFixed(1);
+            if (yEl) yEl.textContent = y.toFixed(1);
+
+            if (designMesh) {
+                // Adjust position relative to T-shirt surface
+                designMesh.position.x = x * 0.8; // Scale movement
+                designMesh.position.y = 0.5 + (y * 0.8); // Keep above center
+                updateStatus(`📍 Pozisyon: ${x.toFixed(1)}, ${y.toFixed(1)}`);
             }
         }
 
@@ -374,6 +574,20 @@
                 document.getElementById('design-input').value = '';
                 updateStatus('Tasarım sıfırlandı');
             }
+        }
+
+        let autoRotateEnabled = false;
+        function toggleAutoRotate() {
+            autoRotateEnabled = !autoRotateEnabled;
+            if (controls) {
+                controls.autoRotate = autoRotateEnabled;
+                controls.autoRotateSpeed = autoRotateEnabled ? 2.0 : 0;
+            }
+            const btn = document.getElementById('rotate-btn');
+            if (btn) {
+                btn.textContent = autoRotateEnabled ? '⏸️ Durdur' : '🔄 Döndür';
+            }
+            updateStatus(autoRotateEnabled ? '🔄 Otomatik döndürme açık' : '⏸️ Otomatik döndürme kapalı');
         }
 
         window.addEventListener('DOMContentLoaded', function () {
