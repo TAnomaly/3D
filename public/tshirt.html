@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎽 3D T-Shirt Studio Pro</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f0f23;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .back-btn {
+            color: #06d6a0;
+            text-decoration: none;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .title {
+            color: #06d6a0;
+            margin-bottom: 30px;
+        }
+
+        canvas {
+            background: #1a1a2e;
+            border-radius: 10px;
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+        }
+
+        #canvas-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            height: 600px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            height: 650px;
+        }
+
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            overflow-y: auto;
+            max-height: 100%;
+        }
+
+        .status {
+            background: rgba(6, 214, 160, 0.1);
+            border: 1px solid #06d6a0;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">← Ana Sayfaya Dön</a>
+        <h1 class="title">🎽 3D T-Shirt Studio Pro</h1>
+
+        <div id="status" class="status">Başlatılıyor...</div>
+
+        <div class="grid-container">
+            <div class="controls-panel">
+                <h3>Kontroller</h3>
+
+                <div style="margin-bottom: 20px;">
+                    <label>T-Shirt Rengi:</label><br>
+                    <input type="color" id="tshirt-color" value="#ffffff" onchange="setTshirtColor(this.value)">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label>Tasarım Yükle:</label><br>
+                    <input type="file" id="design-input" accept="image/*" onchange="loadDesign(this)">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label>Boyut: <span id="scale-value">1.0x</span></label><br>
+                    <input type="range" id="design-scale" min="0.1" max="3.0" step="0.1" value="1.0"
+                        oninput="updateDesignScale(this.value)">
+                </div>
+
+                <button onclick="exportImage()"
+                    style="background: #06d6a0; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                    💾 Kaydet
+                </button>
+
+                <button onclick="resetDesign()"
+                    style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                    🗑️ Sıfırla
+                </button>
+
+                <button onclick="testGLB()"
+                    style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px; width: 100%;">
+                    🔧 GLB Test
+                </button>
+            </div>
+
+            <div id="canvas-container">
+                <!-- Three.js canvas here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let tshirt, designMesh;
+
+        function updateStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = isError ? 'status error' : 'status';
+            console.log(message);
+        }
+
+        function testGLB() {
+            updateStatus('GLB dosyası test ediliyor...');
+            fetch('/tshirt.glb')
+                .then(response => {
+                    if (response.ok) {
+                        updateStatus(`✅ GLB dosyası erişilebilir! (${(response.headers.get('content-length') / 1024 / 1024).toFixed(2)} MB)`);
+                    } else {
+                        updateStatus(`❌ GLB dosyası bulunamadı! HTTP ${response.status}`, true);
+                    }
+                })
+                .catch(error => {
+                    updateStatus(`❌ GLB dosyası yüklenemedi: ${error.message}`, true);
+                });
+        }
+
+        function initThreeJS() {
+            updateStatus('3D sahne başlatılıyor...');
+
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            // Fixed camera settings for stable view
+            camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 2, 12);
+
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true,
+                preserveDrawingBuffer: true
+            });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Optimized controls - less sensitive, more stable
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.target.set(0, 1, 0); // Look slightly up from center
+            controls.enablePan = false; // Disable panning for stability
+            controls.minDistance = 8;
+            controls.maxDistance = 20;
+            controls.minPolarAngle = Math.PI * 0.2; // Limit vertical rotation
+            controls.maxPolarAngle = Math.PI * 0.8;
+            controls.autoRotate = false;
+            controls.autoRotateSpeed = 1.0;
+
+            // Professional lighting setup
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            directionalLight.position.set(5, 8, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight.position.set(-5, 3, -5);
+            scene.add(fillLight);
+
+            updateStatus('Profesyonel ışıklandırma ayarlandı. T-shirt modeli yükleniyor...');
+
+            // Load T-shirt with proper sizing
+            const loader = new THREE.GLTFLoader();
+
+            loader.load(
+                '/tshirt.glb',
+                function (gltf) {
+                    tshirt = gltf.scene;
+
+                    // Get precise bounding box
+                    const box = new THREE.Box3().setFromObject(tshirt);
+                    const size = box.getSize(new THREE.Vector3());
+                    const center = box.getCenter(new THREE.Vector3());
+
+                    // Calculate optimal scale to fit in view
+                    const maxDimension = Math.max(size.x, size.y, size.z);
+                    const targetSize = 8; // Optimal size for the viewport
+                    const scale = targetSize / maxDimension;
+
+                    tshirt.scale.set(scale, scale, scale);
+
+                    // Position T-shirt properly centered
+                    tshirt.position.set(-center.x * scale, -center.y * scale + 1, -center.z * scale);
+
+                    // Setup materials
+                    tshirt.traverse(function (child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+
+                            if (child.material) {
+                                child.material.needsUpdate = true;
+                                // Ensure good visibility
+                                if (child.material.transparent) {
+                                    child.material.opacity = Math.max(child.material.opacity, 0.95);
+                                }
+                            }
+                        }
+                    });
+
+                    scene.add(tshirt);
+
+                    // Fit camera to model
+                    controls.target.set(0, 1, 0);
+                    controls.update();
+
+                    updateStatus(`✅ T-shirt hazır! Fare ile döndürün, tekerlek ile yakınlaştırın`);
+                },
+                function (progress) {
+                    if (progress.lengthComputable) {
+                        const percentComplete = (progress.loaded / progress.total) * 100;
+                        updateStatus(`T-shirt yükleniyor... ${percentComplete.toFixed(1)}%`);
+                    }
+                },
+                function (error) {
+                    updateStatus(`❌ T-shirt yüklenemedi: ${error.message || error}`, true);
+                    console.error('GLTFLoader error:', error);
+
+                    // Fallback T-shirt shape
+                    const geometry = new THREE.BoxGeometry(4, 5, 0.5);
+                    const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
+                    tshirt = new THREE.Mesh(geometry, material);
+                    tshirt.position.set(0, 1, 0);
+                    scene.add(tshirt);
+                    updateStatus('⚠️ Basit T-shirt şekli yüklendi');
+                }
+            );
+
+            animate();
+            updateStatus('3D motor başlatıldı...');
+            setTimeout(testGLB, 500);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function setTshirtColor(color) {
+            if (tshirt) {
+                tshirt.traverse(function (child) {
+                    if (child.isMesh && child.material) {
+                        child.material.color.setHex(color.replace('#', '0x'));
+                    }
+                });
+                updateStatus(`T-shirt rengi değiştirildi: ${color}`);
+            }
+        }
+
+        function loadDesign(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            updateStatus(`Tasarım yükleniyor: ${file.name}`);
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    const texture = new THREE.Texture(img);
+                    texture.needsUpdate = true;
+
+                    if (designMesh) {
+                        if (designMesh.parent) {
+                            designMesh.parent.remove(designMesh);
+                        } else {
+                            scene.remove(designMesh);
+                        }
+                    }
+
+                    const geometry = new THREE.PlaneGeometry(5, 5);
+                    const material = new THREE.MeshBasicMaterial({
+                        map: texture,
+                        transparent: true
+                    });
+
+                    designMesh = new THREE.Mesh(geometry, material);
+
+                    if (tshirt) {
+                        tshirt.add(designMesh);
+                        designMesh.position.set(0, 0, 1.6);
+                        updateStatus(`✅ Tasarım T-shirt'e eklendi!`);
+                    } else {
+                        scene.add(designMesh);
+                        designMesh.position.set(0, 0, 18);
+                        updateStatus(`✅ Tasarım sahneye eklendi!`);
+                    }
+                };
+                img.onerror = function () {
+                    updateStatus('❌ Resim yüklenemedi!', true);
+                };
+                img.src = e.target.result;
+            };
+            reader.onerror = function () {
+                updateStatus('❌ Dosya okunamadı!', true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateDesignScale(value) {
+            document.getElementById('scale-value').textContent = value + 'x';
+            if (designMesh) {
+                designMesh.scale.setScalar(parseFloat(value));
+                updateStatus(`Tasarım boyutu: ${value}x`);
+            }
+        }
+
+        function exportImage() {
+            const canvas = renderer.domElement;
+            const link = document.createElement('a');
+            link.download = 'tshirt-mockup.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            updateStatus('✅ Görüntü kaydedildi!');
+        }
+
+        function resetDesign() {
+            if (designMesh) {
+                if (designMesh.parent) {
+                    designMesh.parent.remove(designMesh);
+                } else {
+                    scene.remove(designMesh);
+                }
+                designMesh = null;
+                document.getElementById('design-input').value = '';
+                updateStatus('Tasarım sıfırlandı');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', function () {
+            console.log('🎮 3D T-Shirt Studio başlatılıyor...');
+            initThreeJS();
+        });
+
+        window.addEventListener('resize', function () {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+
+            updateStatus(`Canvas boyutu: ${width}x${height}`);
+        });
+    </script>
+</body>
+
+</html>

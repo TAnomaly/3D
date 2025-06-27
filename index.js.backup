@@ -1,0 +1,1680 @@
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// ES modules için __dirname alternatifi
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Routes import
+import usersRouter from './routes/users.js';
+import hunyuan3dRouter from './routes/hunyuan3d.js';
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
+
+// Serve GLB files
+app.get('/tshirt.glb', (req, res) => {
+    console.log('📥 GLB dosyası talep edildi');
+    const filePath = path.join(process.cwd(), 'tshirt.glb');
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('❌ GLB dosyası bulunamadı:', err);
+            res.status(404).send('GLB dosyası bulunamadı');
+        } else {
+            console.log('✅ GLB dosyası başarıyla gönderildi');
+        }
+    });
+});
+
+// Routes
+app.get('/', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="tr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Node.js Projesi</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    min-height: 100vh;
+                }
+                .container {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 30px;
+                    border-radius: 15px;
+                    backdrop-filter: blur(10px);
+                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+                }
+                h1 {
+                    text-align: center;
+                    margin-bottom: 30px;
+                }
+                .feature {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 20px;
+                    margin: 15px 0;
+                    border-radius: 10px;
+                    border-left: 4px solid #00ff88;
+                }
+                .api-link {
+                    background: #00ff88;
+                    color: #333;
+                    padding: 10px 20px;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    display: inline-block;
+                    margin-top: 10px;
+                    transition: all 0.3s ease;
+                }
+                .api-link:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🎨 3D Design Studio</h1>
+                <p style="text-align: center; margin-bottom: 30px; font-size: 18px;">
+                    AI ile tasarımlarınızı 3D modellere dönüştürün!
+                </p>
+                
+                <div class="feature">
+                    <h3>🎽 T-Shirt Mockup</h3>
+                    <p>T-shirt tasarımlarınızı 3D modellere dönüştürün!</p>
+                    <a href="/tshirt-mockup" class="api-link">T-Shirt Mockup</a>
+                </div>
+                
+                <div class="feature">
+                    <h3>🖼️ Resimden 3D Model</h3>
+                    <p>Tek bir resimden otomatik olarak 3D model oluşturun.</p>
+                    <a href="/3d-generator" class="api-link">3D Generator</a>
+                </div>
+                
+                <div class="feature">
+                    <h3>🔧 API Test</h3>
+                    <p>Hunyuan3D API bağlantısını test edin.</p>
+                    <a href="/api/3d/test-connection" class="api-link">API Test</a>
+                </div>
+                
+                <div class="feature">
+                    <h3>👥 Kullanıcı API</h3>
+                    <p>Kullanıcı yönetimi için RESTful API.</p>
+                    <a href="/api/users" class="api-link">Users API</a>
+                </div>
+                
+                <div class="feature">
+                    <h3>🚀 Güçlü AI Teknolojisi</h3>
+                    <p>Tencent'in son teknoloji Hunyuan3D-2.1 modeli kullanılıyor.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+// 3D Generator Sayfası
+app.get('/3d-generator', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="tr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>3D Model Oluşturucu</title>
+            <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    color: white;
+                }
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 30px;
+                    border-radius: 15px;
+                    backdrop-filter: blur(10px);
+                    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 40px;
+                }
+                .upload-section {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 30px;
+                    border-radius: 15px;
+                    margin-bottom: 30px;
+                }
+                .file-upload {
+                    border: 2px dashed #00ff88;
+                    border-radius: 10px;
+                    padding: 40px;
+                    text-align: center;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    margin-bottom: 20px;
+                }
+                .file-upload:hover {
+                    background: rgba(0, 255, 136, 0.1);
+                    transform: translateY(-2px);
+                }
+                .file-upload input {
+                    display: none;
+                }
+                .controls {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                    gap: 20px;
+                    margin-bottom: 30px;
+                }
+                .control-group {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 20px;
+                    border-radius: 10px;
+                }
+                .control-group label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: bold;
+                }
+                .control-group input, .control-group select {
+                    width: 100%;
+                    padding: 10px;
+                    border: none;
+                    border-radius: 5px;
+                    background: rgba(255, 255, 255, 0.2);
+                    color: white;
+                    box-sizing: border-box;
+                }
+                .control-group input::placeholder {
+                    color: rgba(255, 255, 255, 0.7);
+                }
+                .generate-btn {
+                    background: linear-gradient(45deg, #00ff88, #00cc6a);
+                    color: white;
+                    border: none;
+                    padding: 15px 30px;
+                    border-radius: 10px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    width: 100%;
+                    margin-bottom: 20px;
+                }
+                .generate-btn:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 25px rgba(0, 255, 136, 0.4);
+                }
+                .generate-btn:disabled {
+                    background: #666;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+                .result-section {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 30px;
+                    border-radius: 15px;
+                    margin-top: 30px;
+                    display: none;
+                }
+                .loading {
+                    text-align: center;
+                    padding: 40px;
+                }
+                .spinner {
+                    border: 4px solid rgba(255, 255, 255, 0.3);
+                    border-radius: 50%;
+                    border-top: 4px solid #00ff88;
+                    width: 50px;
+                    height: 50px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 20px;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                .error {
+                    background: rgba(255, 0, 0, 0.2);
+                    border: 1px solid rgba(255, 0, 0, 0.5);
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 10px 0;
+                }
+                .success {
+                    background: rgba(0, 255, 0, 0.2);
+                    border: 1px solid rgba(0, 255, 0, 0.5);
+                    padding: 15px;
+                    border-radius: 8px;
+                    margin: 10px 0;
+                }
+                .preview-image {
+                    max-width: 200px;
+                    max-height: 200px;
+                    border-radius: 10px;
+                    margin: 10px;
+                }
+                .back-btn {
+                    background: rgba(255, 255, 255, 0.2);
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    text-decoration: none;
+                    display: inline-block;
+                    margin-bottom: 20px;
+                    transition: all 0.3s ease;
+                }
+                .back-btn:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                    transform: translateY(-2px);
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <a href="/" class="back-btn">← Ana Sayfaya Dön</a>
+                
+                <div class="header">
+                    <h1>🎨 3D Model Oluşturucu</h1>
+                    <p>Resimlerinizi AI ile 3D modellere dönüştürün!</p>
+                </div>
+
+                <div class="upload-section">
+                    <h3>📸 Resim Yükleme</h3>
+                    <div class="file-upload" onclick="console.log('Upload area tıklandı'); document.getElementById('image-input').click();">
+                        <input type="file" id="image-input" accept="image/*" onchange="console.log('Input değişti'); previewImage(this);">
+                        <div id="upload-text">
+                            <p style="font-size: 24px; margin: 10px 0;">📁</p>
+                            <p>Resim yüklemek için tıklayın</p>
+                            <p style="font-size: 14px; opacity: 0.8;">PNG, JPG, GIF, WebP desteklenir</p>
+                        </div>
+                        <div id="image-preview" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="steps">🔄 Inference Steps:</label>
+                        <input type="range" id="steps" min="1" max="50" value="30" onchange="updateValue('steps', this.value)">
+                        <span id="steps-value">30</span>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="guidance">🎯 Guidance Scale:</label>
+                        <input type="range" id="guidance" min="1" max="20" step="0.5" value="5" onchange="updateValue('guidance', this.value)">
+                        <span id="guidance-value">5</span>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="resolution">📐 Octree Resolution:</label>
+                        <select id="resolution">
+                            <option value="64">64 (Hızlı)</option>
+                            <option value="128">128 (Orta)</option>
+                            <option value="256" selected>256 (Yüksek)</option>
+                            <option value="512">512 (En Yüksek)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="seed">🎲 Seed:</label>
+                        <input type="number" id="seed" value="" placeholder="Rastgele (boş bırakın)">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="remove-bg" checked> 🖼️ Arkaplanı Kaldır
+                        </label>
+                        <br><br>
+                        <label>
+                            <input type="checkbox" id="randomize-seed" checked> 🔀 Rastgele Seed
+                        </label>
+                    </div>
+                </div>
+
+                <button class="generate-btn" onclick="generate3D()" id="generate-btn">
+                    🚀 3D Model Oluştur
+                </button>
+
+                <div class="result-section" id="result-section">
+                    <h3>📊 Sonuç</h3>
+                    <div id="result-content"></div>
+                </div>
+            </div>
+
+            <script>
+                function previewImage(input) {
+                    console.log('previewImage çağrıldı:', input);
+                    const file = input.files[0];
+                    console.log('Seçilen dosya:', file);
+                    
+                    if (file) {
+                        // Dosya türü kontrolü
+                        if (!file.type.startsWith('image/')) {
+                            alert('Lütfen sadece resim dosyası seçin!');
+                            return;
+                        }
+                        
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            console.log('Dosya başarıyla yüklendi');
+                            document.getElementById('upload-text').style.display = 'none';
+                            document.getElementById('image-preview').style.display = 'block';
+                            document.getElementById('image-preview').innerHTML = 
+                                '<img src="' + e.target.result + '" class="preview-image" alt="Preview">';
+                        }
+                        reader.onerror = function() {
+                            console.error('Dosya okuma hatası');
+                            alert('Dosya okunamadı!');
+                        }
+                        reader.readAsDataURL(file);
+                    } else {
+                        console.log('Dosya seçilmedi');
+                    }
+                }
+
+                function updateValue(id, value) {
+                    document.getElementById(id + '-value').textContent = value;
+                }
+
+                async function generate3D() {
+                    const imageInput = document.getElementById('image-input');
+                    const generateBtn = document.getElementById('generate-btn');
+                    const resultSection = document.getElementById('result-section');
+                    const resultContent = document.getElementById('result-content');
+
+                    if (!imageInput.files[0]) {
+                        alert('Lütfen önce bir resim yükleyin!');
+                        return;
+                    }
+
+                    // UI'yi güncelle
+                    generateBtn.disabled = true;
+                    generateBtn.textContent = '⏳ Oluşturuluyor...';
+                    resultSection.style.display = 'block';
+                    resultContent.innerHTML = \`
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>3D model oluşturuluyor... Bu işlem birkaç dakika sürebilir.</p>
+                        </div>
+                    \`;
+
+                    // Form data hazırla
+                    const formData = new FormData();
+                    formData.append('image', imageInput.files[0]);
+                    formData.append('steps', document.getElementById('steps').value);
+                    formData.append('guidance_scale', document.getElementById('guidance').value);
+                    formData.append('octree_resolution', document.getElementById('resolution').value);
+                    formData.append('remove_background', document.getElementById('remove-bg').checked);
+                    formData.append('randomize_seed', document.getElementById('randomize-seed').checked);
+                    
+                    const seedValue = document.getElementById('seed').value;
+                    if (seedValue) {
+                        formData.append('seed', seedValue);
+                    }
+
+                    try {
+                        const response = await fetch('/api/3d/generate-shape', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            const modelData = result.data;
+                            let modelInfo = '';
+                            let downloadLinks = '';
+                            
+                            // Model bilgilerini parse et
+                            if (modelData && Array.isArray(modelData)) {
+                                const fileData = modelData[0];
+                                const statsData = modelData[2];
+                                
+                                if (fileData && fileData.value) {
+                                    const file = fileData.value;
+                                    downloadLinks = \`
+                                        <div style="margin: 20px 0; padding: 20px; background: rgba(0,255,136,0.1); border-radius: 10px;">
+                                            <h4>📥 Model Dosyası</h4>
+                                            <p><strong>Dosya:</strong> \${file.orig_name}</p>
+                                            <p><strong>Boyut:</strong> \${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            <a href="\${file.url}" target="_blank" class="api-link" download="\${file.orig_name}">
+                                                📥 Direkt İndir
+                                            </a>
+                                            <a href="/api/3d/download/\${file.orig_name}?url=\${encodeURIComponent(file.url)}" class="api-link" style="margin-left: 10px;" download="\${file.orig_name}">
+                                                💾 Sunucu Üzerinden İndir
+                                            </a>
+                                            <button onclick="preview3D('\${file.url}')" class="api-link" style="margin-left: 10px;">
+                                                👁️ Önizleme
+                                            </button>
+                                        </div>
+                                    \`;
+                                }
+                                
+                                if (statsData && typeof statsData === 'object') {
+                                    modelInfo = \`
+                                        <div style="margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                                            <h4>📊 Model İstatistikleri</h4>
+                                            <p><strong>Face Sayısı:</strong> \${statsData.number_of_faces?.toLocaleString() || 'N/A'}</p>
+                                            <p><strong>Vertex Sayısı:</strong> \${statsData.number_of_vertices?.toLocaleString() || 'N/A'}</p>
+                                            <p><strong>Seed:</strong> \${statsData.params?.seed || 'N/A'}</p>
+                                            <p><strong>İşlem Süresi:</strong> \${statsData.time?.total?.toFixed(2) || 'N/A'} saniye</p>
+                                            <p><strong>Model:</strong> \${statsData.model?.shapegen || 'N/A'}</p>
+                                        </div>
+                                    \`;
+                                }
+                            }
+
+                            resultContent.innerHTML = \`
+                                <div class="success">
+                                    <h4>✅ 3D Model Başarıyla Oluşturuldu!</h4>
+                                    <p>\${result.message}</p>
+                                    \${downloadLinks}
+                                    \${modelInfo}
+                                    <div id="model-preview" style="margin-top: 20px;"></div>
+                                </div>
+                            \`;
+                        } else {
+                            resultContent.innerHTML = \`
+                                <div class="error">
+                                    <h4>❌ Hata!</h4>
+                                    <p>\${result.message}</p>
+                                    <p>\${result.error || ''}</p>
+                                </div>
+                            \`;
+                        }
+
+                    } catch (error) {
+                        resultContent.innerHTML = \`
+                            <div class="error">
+                                <h4>❌ Bağlantı Hatası!</h4>
+                                <p>Sunucuya bağlanırken bir hata oluştu: \${error.message}</p>
+                            </div>
+                        \`;
+                    }
+
+                    // UI'yi sıfırla
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '🚀 3D Model Oluştur';
+                }
+
+                // 3D Model Önizleme
+                function preview3D(modelUrl) {
+                    const previewDiv = document.getElementById('model-preview');
+                    
+                    // Model viewer iframe oluştur
+                    previewDiv.innerHTML = \`
+                        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                            <h4>👁️ 3D Model Önizlemesi</h4>
+                            <div style="width: 100%; height: 400px; background: #000; border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative;">
+                                <model-viewer 
+                                    src="\${modelUrl}" 
+                                    alt="3D Model" 
+                                    auto-rotate 
+                                    camera-controls 
+                                    style="width: 100%; height: 100%;"
+                                    loading="eager">
+                                </model-viewer>
+                            </div>
+                            <p style="text-align: center; margin-top: 10px; font-size: 14px; opacity: 0.8;">
+                                Mouse ile döndürüp yakınlaştırabilirsiniz
+                            </p>
+                        </div>
+                    \`;
+                }
+
+                // Model viewer script'ini head'e ekle
+                if (!document.querySelector('script[src*="model-viewer"]')) {
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
+                    document.head.appendChild(script);
+                }
+            </script>
+        </body>
+        </html>
+    \`);
+});
+
+// T-Shirt Mockup Sayfası
+app.get('/tshirt-mockup', (req, res) => {
+    res.send(`
+        < !DOCTYPE html >
+    <html lang="tr">
+        <head>
+            <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>3D T-Shirt Mockup Studio</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+                    <style>
+                        body {
+                            font - family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        overflow-x: hidden;
+                }
+                        .container {
+                            display: grid;
+                        grid-template-columns: 300px 1fr;
+                        height: 100vh;
+                }
+                        .sidebar {
+                            background: rgba(255, 255, 255, 0.1);
+                        padding: 20px;
+                        backdrop-filter: blur(10px);
+                        overflow-y: auto;
+                }
+                        .main-area {
+                            position: relative;
+                        display: flex;
+                        flex-direction: column;
+                }
+                        .header {
+                            padding: 20px;
+                        text-align: center;
+                        background: rgba(255, 255, 255, 0.1);
+                }
+                        .canvas-container {
+                            flex: 1;
+                        position: relative;
+                        background: #000;
+                }
+                        .control-group {
+                            background: rgba(255, 255, 255, 0.1);
+                        padding: 15px;
+                        border-radius: 10px;
+                        margin-bottom: 15px;
+                }
+                        .control-group h3 {
+                            margin: 0 0 15px 0;
+                        font-size: 16px;
+                        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+                        padding-bottom: 8px;
+                }
+                        .file-upload {
+                            border: 2px dashed #00ff88;
+                        border-radius: 8px;
+                        padding: 20px;
+                        text-align: center;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        margin-bottom: 15px;
+                }
+                        .file-upload:hover {
+                            background: rgba(0, 255, 136, 0.1);
+                }
+                        .file-upload input {
+                            display: none;
+                }
+                        .color-picker {
+                            width: 100%;
+                        height: 40px;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                }
+                        .slider {
+                            width: 100%;
+                        margin: 10px 0;
+                }
+                        .btn {
+                            background: linear-gradient(45deg, #00ff88, #00cc6a);
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        width: 100%;
+                        margin: 5px 0;
+                }
+                        .btn:hover {
+                            transform: translateY(-2px);
+                        box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+                }
+                        .btn-secondary {
+                            background: linear-gradient(45deg, #667eea, #764ba2);
+                }
+                        .back-btn {
+                            position: absolute;
+                        top: 20px;
+                        left: 20px;
+                        background: rgba(255, 255, 255, 0.2);
+                        color: white;
+                        padding: 10px 15px;
+                        border-radius: 5px;
+                        text-decoration: none;
+                        z-index: 1000;
+                }
+                        .export-section {
+                            background: rgba(0, 255, 136, 0.1);
+                        border: 1px solid rgba(0, 255, 136, 0.3);
+                        border-radius: 10px;
+                        padding: 15px;
+                        margin-top: 15px;
+                }
+                        #canvas {
+                            display: block;
+                }
+                        .preset-colors {
+                            display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 8px;
+                        margin: 10px 0;
+                }
+                        .preset-color {
+                            width: 30px;
+                        height: 30px;
+                        border-radius: 50%;
+                        cursor: pointer;
+                        border: 2px solid transparent;
+                        transition: all 0.3s ease;
+                }
+                        .preset-color:hover {
+                            border - color: white;
+                        transform: scale(1.1);
+                }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="sidebar">
+                            <a href="/" class="back-btn">← Ana Sayfa</a>
+
+                            <div style="margin-top: 60px;">
+                                <h2>🎽 T-Shirt Studio</h2>
+
+                                <div class="control-group">
+                                    <h3>🎨 T-Shirt Rengi</h3>
+                                    <input type="color" id="tshirt-color" class="color-picker" value="#ffffff">
+                                        <div class="preset-colors">
+                                            <div class="preset-color" style="background: #ffffff" onclick="setTshirtColor('#ffffff')"></div>
+                                            <div class="preset-color" style="background: #000000" onclick="setTshirtColor('#000000')"></div>
+                                            <div class="preset-color" style="background: #ff0000" onclick="setTshirtColor('#ff0000')"></div>
+                                            <div class="preset-color" style="background: #00ff00" onclick="setTshirtColor('#00ff00')"></div>
+                                            <div class="preset-color" style="background: #0000ff" onclick="setTshirtColor('#0000ff')"></div>
+                                            <div class="preset-color" style="background: #ffff00" onclick="setTshirtColor('#ffff00')"></div>
+                                            <div class="preset-color" style="background: #ff00ff" onclick="setTshirtColor('#ff00ff')"></div>
+                                            <div class="preset-color" style="background: #00ffff" onclick="setTshirtColor('#00ffff')"></div>
+                                        </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>🖼️ Tasarım Yükleme</h3>
+                                    <div class="file-upload" onclick="document.getElementById('design-input').click()" style="cursor: pointer; border: 2px dashed rgba(255,255,255,0.5); padding: 20px; text-align: center; border-radius: 10px; background: rgba(255,255,255,0.1);">
+                                        <input type="file" id="design-input" accept="image/*" onchange="loadDesign(this)" style="display: none;">
+                                            <p style="margin: 10px 0; font-size: 16px;">📁 Dosya Seç veya Buraya Sürükle</p>
+                                            <small style="opacity: 0.8;">PNG, JPG, JPEG desteklenir</small>
+                                            <div id="file-name" style="margin-top: 10px; color: #00ff88; font-weight: bold;"></div>
+                                    </div>
+
+                                    <!-- Alternative direct input -->
+                                    <div style="margin-top: 10px;">
+                                        <label style="display: block; margin-bottom: 5px;">veya direkt seçin:</label>
+                                        <input type="file" id="design-input-direct" accept="image/*" onchange="loadDesign(this)" style="width: 100%; padding: 5px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; color: white;">
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>📏 Tasarım Boyutu</h3>
+                                    <label>Genişlik: <span id="design-scale-value">1.0</span></label>
+                                    <input type="range" id="design-scale" class="slider" min="0.1" max="2.0" step="0.1" value="1.0" onchange="updateDesignScale(this.value)">
+                                </div>
+
+                                <div class="control-group">
+                                    <h3>📍 Tasarım Pozisyonu</h3>
+                                    <label>X: <span id="design-x-value">0</span></label>
+                                    <input type="range" id="design-x" class="slider" min="-0.5" max="0.5" step="0.05" value="0" onchange="updateDesignPosition()">
+
+                                        <label>Y: <span id="design-y-value">0</span></label>
+                                        <input type="range" id="design-y" class="slider" min="-0.3" max="0.3" step="0.05" value="0" onchange="updateDesignPosition()">
+                                        </div>
+
+                                        <div class="control-group">
+                                            <h3>🔄 Tasarım Rotasyon</h3>
+                                            <label>Açı: <span id="design-rotation-value">0°</span></label>
+                                            <input type="range" id="design-rotation" class="slider" min="0" max="360" step="5" value="0" onchange="updateDesignRotation(this.value)">
+                                        </div>
+
+                                        <div class="control-group">
+                                            <h3>🌟 T-Shirt Efektleri</h3>
+                                            <label>
+                                                <input type="checkbox" id="enable-shadows" checked onchange="toggleShadows(this.checked)">
+                                                    ☀️ Gölgeler
+                                            </label><br>
+                                                <label>
+                                                    <input type="checkbox" id="enable-environment" checked onchange="toggleEnvironment(this.checked)">
+                                                        🌍 Çevre Yansıması
+                                                </label><br>
+                                                    <label>
+                                                        <input type="checkbox" id="auto-rotate" onchange="toggleAutoRotate(this.checked)">
+                                                            🔄 Otomatik Döndürme
+                                                    </label>
+                                                </div>
+
+                                                <div class="control-group">
+                                                    <h3>💡 Işık Ayarları</h3>
+                                                    <label>Parlaklık: <span id="light-intensity-value">1.0</span></label>
+                                                    <input type="range" id="light-intensity" class="slider" min="0.1" max="2.0" step="0.1" value="1.0" onchange="updateLightIntensity(this.value)">
+
+                                                        <label>Materyal Parlaklığı: <span id="material-roughness-value">0.5</span></label>
+                                                        <input type="range" id="material-roughness" class="slider" min="0.0" max="1.0" step="0.05" value="0.5" onchange="updateMaterialRoughness(this.value)">
+                                                        </div>
+
+                                                        <div class="export-section">
+                                                            <h3>💾 Export</h3>
+                                                            <button class="btn" onclick="exportImage()">📸 PNG İndir</button>
+                                                            <button class="btn btn-secondary" onclick="resetDesign()">🔄 Sıfırla</button>
+                                                        </div>
+                                                </div>
+                                        </div>
+
+                                        <div class="main-area">
+                                            <div class="header">
+                                                <h1>🎽 3D T-Shirt Mockup Studio</h1>
+                                                <p>Tasarımınızı yükleyin ve interaktif 3D önizleme yapın!</p>
+                                            </div>
+                                            <div class="canvas-container">
+                                                <canvas id="canvas"></canvas>
+                                            </div>
+                                        </div>
+                                </div>
+
+                                <script>
+                                    let scene, camera, renderer, tshirt, designTexture;
+                                    let designMesh = null;
+                                    let controls, ambientLight, directionalLight, pointLight;
+                                    let isAutoRotating = false;
+                                    let tshirtMaterials = [];
+                                    let gltfLoader, dracoLoader;
+
+                                    // Scene setup
+                                    function initThreeJS() {
+                     const canvas = document.getElementById('canvas');
+                                    const container = canvas.parentElement;
+
+                                    scene = new THREE.Scene();
+
+                                    // Professional studio background
+                                    const gradientCanvas = document.createElement('canvas');
+                                    gradientCanvas.width = 1024;
+                                    gradientCanvas.height = 1024;
+                                    const gradientCtx = gradientCanvas.getContext('2d');
+
+                                    // Create studio backdrop gradient
+                                    const gradient = gradientCtx.createRadialGradient(512, 400, 0, 512, 400, 800);
+                                    gradient.addColorStop(0, '#ffffff');
+                                    gradient.addColorStop(0.3, '#f8f9fa');
+                                    gradient.addColorStop(0.7, '#e9ecef');
+                                    gradient.addColorStop(1, '#dee2e6');
+                                    gradientCtx.fillStyle = gradient;
+                                    gradientCtx.fillRect(0, 0, 1024, 1024);
+
+                                    // Add subtle studio texture
+                                    gradientCtx.globalAlpha = 0.02;
+                                    for (let i = 0; i < 1024; i += 8) {
+                         for (let j = 0; j < 1024; j += 8) {
+                             if (Math.random() > 0.7) {
+                                        gradientCtx.fillStyle = '#f0f0f0';
+                                    gradientCtx.fillRect(i, j, 4, 4);
+                             }
+                         }
+                     }
+
+                                    const gradientTexture = new THREE.CanvasTexture(gradientCanvas);
+                                    scene.background = gradientTexture;
+
+                                    camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                                    renderer = new THREE.WebGLRenderer({
+                                        canvas: canvas,
+                                    antialias: true,
+                                    shadowMap: {
+                                        enabled: true,
+                                    type: THREE.PCFSoftShadowMap
+                         }
+                     });
+                                    renderer.setSize(container.clientWidth, container.clientHeight);
+                                    renderer.shadowMap.enabled = true;
+                                    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                                    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                                    renderer.toneMappingExposure = 1.2;
+
+                                    // Enhanced Lighting System
+                                    setupLighting();
+
+                                    // Load GLB T-shirt model
+                                    loadGLBTshirt();
+
+                                    // Camera position optimized for GLB T-shirt
+                                    camera.position.set(0, 1, 3);
+                                    camera.lookAt(0, 0, 0);
+
+                                    // Enhanced Controls
+                                    controls = new THREE.OrbitControls(camera, renderer.domElement);
+                                    controls.enableDamping = true;
+                                    controls.dampingFactor = 0.05;
+                                    controls.minDistance = 2;
+                                    controls.maxDistance = 8;
+                                    controls.maxPolarAngle = Math.PI / 1.5;
+                                    controls.minPolarAngle = Math.PI / 3;
+
+                                    // Animation loop
+                                    function animate() {
+                                        requestAnimationFrame(animate);
+
+                                    if (isAutoRotating) {
+                                        tshirt.rotation.y += 0.005;
+                         }
+
+                                    controls.update();
+                                    renderer.render(scene, camera);
+                     }
+                                    animate();
+
+                                    // Resize handler
+                                    window.addEventListener('resize', onWindowResize, false);
+                 }
+
+                                    function setupLighting() {
+                                        // Professional studio lighting setup
+
+                                        // Key light (main illumination)
+                                        directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                                    directionalLight.position.set(8, 10, 6);
+                                    directionalLight.castShadow = true;
+                                    directionalLight.shadow.mapSize.width = 4096;
+                                    directionalLight.shadow.mapSize.height = 4096;
+                                    directionalLight.shadow.camera.near = 0.1;
+                                    directionalLight.shadow.camera.far = 50;
+                                    directionalLight.shadow.camera.left = -15;
+                                    directionalLight.shadow.camera.right = 15;
+                                    directionalLight.shadow.camera.top = 15;
+                                    directionalLight.shadow.camera.bottom = -15;
+                                    directionalLight.shadow.bias = -0.0001;
+                                    directionalLight.shadow.radius = 8;
+                                    scene.add(directionalLight);
+
+                                    // Fill light (softer secondary light)
+                                    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+                                    fillLight.position.set(-6, 8, 4);
+                                    fillLight.castShadow = false;
+                                    scene.add(fillLight);
+
+                                    // Ambient light (global illumination)
+                                    ambientLight = new THREE.AmbientLight(0xf0f8ff, 0.3);
+                                    scene.add(ambientLight);
+
+                                    // Rim light for edge definition
+                                    const rimLight = new THREE.DirectionalLight(0x87ceeb, 0.6);
+                                    rimLight.position.set(-8, 6, -8);
+                                    scene.add(rimLight);
+
+                                    // Point lights for highlights
+                                    pointLight = new THREE.PointLight(0xffffff, 0.8, 100);
+                                    pointLight.position.set(-4, 6, 8);
+                                    pointLight.castShadow = true;
+                                    pointLight.shadow.mapSize.width = 1024;
+                                    pointLight.shadow.mapSize.height = 1024;
+                                    scene.add(pointLight);
+
+                                    // Accent light from below (bounced light simulation)
+                                    const accentLight = new THREE.PointLight(0xffffcc, 0.3, 50);
+                                    accentLight.position.set(0, -1, 5);
+                                    scene.add(accentLight);
+
+                                    console.log('💡 Professional studio lighting setup complete!');
+                 }
+
+                                    function loadGLBTshirt() {
+                                        console.log('🚀 GLB T-shirt yükleniyor...');
+
+                                    // Setup GLTF loader with Draco support
+                                    gltfLoader = new THREE.GLTFLoader();
+                                    dracoLoader = new THREE.DRACOLoader();
+                                    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+                                    gltfLoader.setDRACOLoader(dracoLoader);
+
+                                    // Load the GLB T-shirt model
+                                    gltfLoader.load(
+                                    '/tshirt.glb',
+                                    function(gltf) {
+                                        console.log('✅ GLB T-shirt başarıyla yüklendi!', gltf);
+
+                                    tshirt = gltf.scene;
+
+                             // Configure T-shirt materials and properties
+                             tshirt.traverse((child) => {
+                                 if (child.isMesh) {
+                                        // Enable shadows
+                                        child.castShadow = true;
+                                    child.receiveShadow = true;
+
+                                    // Enhance materials
+                                    if (child.material) {
+                                        // Store original material for color changes
+                                        tshirtMaterials.push(child.material);
+
+                                    // Enhance material properties
+                                    if (child.material.map) {
+                                        child.material.map.flipY = false;
+                                         }
+
+                                    // Set PBR properties for realistic rendering
+                                    if (child.material.isMeshStandardMaterial) {
+                                        child.material.roughness = 0.8;
+                                    child.material.metalness = 0.0;
+                                         }
+
+                                    console.log('📦 Mesh found:', child.name, child.material);
+                                     }
+                                 }
+                             });
+
+                                    // Position and scale the T-shirt
+                                    tshirt.position.set(0, 0, 0);
+                                    tshirt.scale.setScalar(1);
+
+                                    // Find the main body mesh for design attachment
+                                    let bodyMesh = null;
+                             tshirt.traverse((child) => {
+                                 if (child.isMesh && (
+                                    child.name.toLowerCase().includes('body') ||
+                                    child.name.toLowerCase().includes('shirt') ||
+                                    child.name.toLowerCase().includes('front') ||
+                                     child.geometry.attributes.position.count > 100
+                                    )) {
+                                        bodyMesh = child;
+                                    console.log('🎯 Body mesh found:', child.name);
+                                 }
+                             });
+
+                                    // Store reference to body for design attachment
+                                    tshirt.userData.body = bodyMesh || tshirt.children[0];
+
+                                    scene.add(tshirt);
+
+                                    console.log('🎽 GLB T-shirt sahneye eklendi!');
+                         },
+                                    function(progress) {
+                             const percent = (progress.loaded / progress.total * 100).toFixed(1);
+                                    console.log('⏳ Yükleme ilerleme:', percent + '%');
+                         },
+                                    function(error) {
+                                        console.error('❌ GLB T-shirt yükleme hatası:', error);
+
+                                    // Fallback to procedural T-shirt
+                                    console.log('🔄 Procedural T-shirt\'e geri dönülüyor...');
+                                    createFallbackTshirt();
+                         }
+                                    );
+
+                                    // Add realistic environment
+                                    createEnvironment();
+                 }
+
+                                    function createFallbackTshirt() {
+                     // Create ultra-realistic fabric textures
+                     const fabricCanvas = document.createElement('canvas');
+                                    fabricCanvas.width = 1024;
+                                    fabricCanvas.height = 1024;
+                                    const fabricCtx = fabricCanvas.getContext('2d');
+
+                                    // Base fabric with micro-patterns
+                                    fabricCtx.fillStyle = '#ffffff';
+                                    fabricCtx.fillRect(0, 0, 1024, 1024);
+
+                                    // Cotton weave texture
+                                    fabricCtx.globalAlpha = 0.03;
+                                    for (let i = 0; i < 1024; i += 1) {
+                         for (let j = 0; j < 1024; j += 1) {
+                             const noise = Math.sin(i * 0.1) * Math.cos(j * 0.1);
+                                    const brightness = 255 + noise * 10;
+                                    fabricCtx.fillStyle = 'rgb(' + brightness + ', ' + brightness + ', ' + brightness + ')';
+                                    fabricCtx.fillRect(i, j, 1, 1);
+                         }
+                     }
+
+                                    // Thread pattern
+                                    fabricCtx.globalAlpha = 0.08;
+                                    for (let i = 0; i < 1024; i += 3) {
+                                        fabricCtx.strokeStyle = i % 6 === 0 ? '#f5f5f5' : '#fafafa';
+                                    fabricCtx.lineWidth = 1;
+                                    fabricCtx.beginPath();
+                                    fabricCtx.moveTo(i, 0);
+                                    fabricCtx.lineTo(i, 1024);
+                                    fabricCtx.stroke();
+                     }
+
+                                    const fabricTexture = new THREE.CanvasTexture(fabricCanvas);
+                                    fabricTexture.wrapS = THREE.RepeatWrapping;
+                                    fabricTexture.wrapT = THREE.RepeatWrapping;
+                                    fabricTexture.repeat.set(12, 12);
+                                    fabricTexture.generateMipmaps = true;
+                                    fabricTexture.minFilter = THREE.LinearMipmapLinearFilter;
+
+                                    // Advanced normal map for fabric bumps
+                                    const normalCanvas = document.createElement('canvas');
+                                    normalCanvas.width = 512;
+                                    normalCanvas.height = 512;
+                                    const normalCtx = normalCanvas.getContext('2d');
+
+                                    // Base normal (purple = neutral)
+                                    normalCtx.fillStyle = '#8080ff';
+                                    normalCtx.fillRect(0, 0, 512, 512);
+
+                                    // Fabric bump details
+                                    for (let i = 0; i < 512; i += 2) {
+                         for (let j = 0; j < 512; j += 2) {
+                             const intensity = Math.random() * 0.3 + 0.7;
+                                    const r = Math.floor(128 + (intensity - 0.8) * 200);
+                                    const g = Math.floor(128 + (intensity - 0.8) * 200);
+                                    const b = Math.floor(255 * intensity);
+                                    normalCtx.fillStyle = 'rgb(' + r + ', ' + g + ', ' + b + ')';
+                                    normalCtx.fillRect(i, j, 2, 2);
+                         }
+                     }
+
+                                    const normalTexture = new THREE.CanvasTexture(normalCanvas);
+                                    normalTexture.wrapS = THREE.RepeatWrapping;
+                                    normalTexture.wrapT = THREE.RepeatWrapping;
+                                    normalTexture.repeat.set(8, 8);
+
+                                    // Professional PBR material with advanced properties
+                                    const tshirtMaterial = new THREE.MeshStandardMaterial({
+                                        color: 0xffffff,
+                                    map: fabricTexture,
+                                    normalMap: normalTexture,
+                                    normalScale: new THREE.Vector2(0.5, 0.5),
+                                    roughness: 0.85,
+                                    metalness: 0.0,
+                                    transparent: false,
+                                    // Add subsurface scattering effect
+                                    emissive: new THREE.Color(0x000000),
+                                    emissiveIntensity: 0.0
+                     });
+
+                                    tshirtMaterials.push(tshirtMaterial);
+
+                                    // Ultra-realistic T-shirt body with anatomical shape
+                                    const bodyGeometry = new THREE.CylinderGeometry(0.85, 1.05, 2.4, 48, 12);
+
+                                    // Advanced vertex manipulation for realistic T-shirt silhouette
+                                    const bodyPositions = bodyGeometry.attributes.position;
+                                    const bodyUVs = bodyGeometry.attributes.uv;
+
+                                    for (let i = 0; i < bodyPositions.count; i++) {
+                         const y = bodyPositions.getY(i);
+                                    const x = bodyPositions.getX(i);
+                                    const z = bodyPositions.getZ(i);
+                                    const angle = Math.atan2(z, x);
+
+                         // Anatomical T-shirt shaping
+                         if (y > 0.9) {
+                             // Shoulder/neck area - narrow
+                             const factor = 0.7 + Math.sin(angle * 2) * 0.1;
+                                    bodyPositions.setX(i, x * factor);
+                                    bodyPositions.setZ(i, z * factor);
+                         } else if (y > 0.6) {
+                             // Upper chest - wider
+                             const factor = 1.15 + Math.cos(angle * 3) * 0.05;
+                                    bodyPositions.setX(i, x * factor);
+                                    bodyPositions.setZ(i, z * factor);
+                         } else if (y > 0) {
+                             // Mid body - slightly tapered
+                             const factor = 1.0 - (y * 0.08) + Math.sin(angle * 4) * 0.02;
+                                    bodyPositions.setX(i, x * factor);
+                                    bodyPositions.setZ(i, z * factor);
+                         } else {
+                             // Lower body - more fitted
+                             const factor = 0.95 + Math.cos(angle * 2) * 0.03;
+                                    bodyPositions.setX(i, x * factor);
+                                    bodyPositions.setZ(i, z * factor);
+                         }
+
+                         // Add subtle fabric draping
+                         if (Math.abs(angle) > Math.PI * 0.3 && Math.abs(angle) < Math.PI * 0.7) {
+                                        bodyPositions.setZ(i, z * 1.02); // Slight outward curve at sides
+                         }
+                     }
+
+                                    bodyGeometry.attributes.position.needsUpdate = true;
+                                    bodyGeometry.computeVertexNormals();
+
+                                    const body = new THREE.Mesh(bodyGeometry, tshirtMaterial);
+                                    body.castShadow = true;
+                                    body.receiveShadow = true;
+                                    body.position.y = 0;
+
+                                    // Realistic sleeve geometry with natural draping
+                                    const sleeveGeometry = new THREE.CylinderGeometry(0.22, 0.38, 0.9, 20, 6);
+
+                                    // Modify sleeve vertices for natural hang
+                                    const sleevePositions = sleeveGeometry.attributes.position;
+                                    for (let i = 0; i < sleevePositions.count; i++) {
+                         const y = sleevePositions.getY(i);
+                                    const x = sleevePositions.getX(i);
+                                    const z = sleevePositions.getZ(i);
+
+                                    // Add natural sleeve drape
+                                    if (y < 0) {
+                             const drape = Math.abs(y) * 0.15;
+                                    sleevePositions.setX(i, x * (1 + drape));
+                                    sleevePositions.setZ(i, z * (1 + drape));
+                         }
+                     }
+                                    sleeveGeometry.attributes.position.needsUpdate = true;
+                                    sleeveGeometry.computeVertexNormals();
+
+                                    const leftSleeve = new THREE.Mesh(sleeveGeometry, tshirtMaterial.clone());
+                                    leftSleeve.position.set(-1.2, 0.7, 0);
+                                    leftSleeve.rotation.z = Math.PI / 7;
+                                    leftSleeve.rotation.x = -Math.PI / 12; // Natural hang
+                                    leftSleeve.castShadow = true;
+                                    leftSleeve.receiveShadow = true;
+                                    tshirtMaterials.push(leftSleeve.material);
+
+                                    const rightSleeve = new THREE.Mesh(sleeveGeometry, tshirtMaterial.clone());
+                                    rightSleeve.position.set(1.2, 0.7, 0);
+                                    rightSleeve.rotation.z = -Math.PI / 7;
+                                    rightSleeve.rotation.x = -Math.PI / 12; // Natural hang
+                                    rightSleeve.castShadow = true;
+                                    rightSleeve.receiveShadow = true;
+                                    tshirtMaterials.push(rightSleeve.material);
+
+                                    // Professional collar with ribbing effect
+                                    const collarGeometry = new THREE.TorusGeometry(0.42, 0.06, 12, 48);
+                                    const collarMaterial = tshirtMaterial.clone();
+                                    collarMaterial.roughness = 0.9; // Slightly more textured
+
+                                    const collar = new THREE.Mesh(collarGeometry, collarMaterial);
+                                    collar.position.set(0, 1.15, 0);
+                                    collar.rotation.x = Math.PI / 2;
+                                    collar.castShadow = true;
+                                    collar.receiveShadow = true;
+                                    tshirtMaterials.push(collar.material);
+
+                                    // Add hem details at bottom
+                                    const hemGeometry = new THREE.TorusGeometry(1.05, 0.03, 8, 32);
+                                    const hem = new THREE.Mesh(hemGeometry, collarMaterial.clone());
+                                    hem.position.set(0, -1.2, 0);
+                                    hem.rotation.x = Math.PI / 2;
+                                    hem.castShadow = true;
+                                    hem.receiveShadow = true;
+                                    tshirtMaterials.push(hem.material);
+
+                                    // Realistic environment setup
+                                    const groundGeometry = new THREE.PlaneGeometry(20, 20);
+                                    const groundMaterial = new THREE.ShadowMaterial({
+                                        opacity: 0.5,
+                                    color: 0x000000
+                     });
+                                    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                                    ground.rotation.x = -Math.PI / 2;
+                                    ground.position.y = -1.9;
+                                    ground.receiveShadow = true;
+                                    scene.add(ground);
+
+                                    // Group all T-shirt components
+                                    tshirt = new THREE.Group();
+                                    tshirt.add(body);
+                                    tshirt.add(leftSleeve);
+                                    tshirt.add(rightSleeve);
+                                    tshirt.add(collar);
+                                    tshirt.add(hem);
+
+                                    // Store references for design attachment
+                                    tshirt.userData.body = body;
+                                    tshirt.userData.leftSleeve = leftSleeve;
+                                    tshirt.userData.rightSleeve = rightSleeve;
+
+                                    scene.add(tshirt);
+
+                                    console.log('🎽 Ultra-realistic T-shirt created with advanced materials!');
+                 }
+
+                                    function createEnvironment() {
+                     // Realistic environment setup
+                     const groundGeometry = new THREE.PlaneGeometry(20, 20);
+                                    const groundMaterial = new THREE.ShadowMaterial({
+                                        opacity: 0.5,
+                                    color: 0x000000
+                     });
+                                    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                                    ground.rotation.x = -Math.PI / 2;
+                                    ground.position.y = -2;
+                                    ground.receiveShadow = true;
+                                    scene.add(ground);
+
+                                    console.log('🌍 Environment created!');
+                 }
+
+                                    function setTshirtColor(color) {
+                                        document.getElementById('tshirt-color').value = color;
+                    if (tshirt && tshirtMaterials.length > 0) {
+                                        tshirtMaterials.forEach(material => {
+                                            material.color.setHex(parseInt(color.replace('#', ''), 16));
+                                        });
+                    }
+                }
+
+                                    // New interactive functions
+                                    function toggleShadows(enabled) {
+                                        renderer.shadowMap.enabled = enabled;
+                                    directionalLight.castShadow = enabled;
+                                    console.log('Shadows:', enabled ? 'Enabled' : 'Disabled');
+                }
+
+                                    function toggleEnvironment(enabled) {
+                    if (enabled) {
+                        // Add environment reflection
+                        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+                                    const envTexture = pmremGenerator.fromScene(scene, 0.04).texture;
+                        tshirtMaterials.forEach(material => {
+                                        material.envMap = envTexture;
+                                    material.envMapIntensity = 0.3;
+                                    material.needsUpdate = true;
+                        });
+                    } else {
+                                        tshirtMaterials.forEach(material => {
+                                            material.envMap = null;
+                                            material.needsUpdate = true;
+                                        });
+                    }
+                                    console.log('Environment mapping:', enabled ? 'Enabled' : 'Disabled');
+                }
+
+                                    function toggleAutoRotate(enabled) {
+                                        isAutoRotating = enabled;
+                                    controls.autoRotate = enabled;
+                                    controls.autoRotateSpeed = 1.0;
+                                    console.log('Auto rotate:', enabled ? 'Enabled' : 'Disabled');
+                }
+
+                                    function updateLightIntensity(value) {
+                    const intensity = parseFloat(value);
+                                    directionalLight.intensity = intensity;
+                                    pointLight.intensity = intensity * 0.5;
+                                    ambientLight.intensity = intensity * 0.4;
+                                    document.getElementById('light-intensity-value').textContent = intensity.toFixed(1);
+                }
+
+                                    function updateMaterialRoughness(value) {
+                    const roughness = parseFloat(value);
+                    tshirtMaterials.forEach(material => {
+                                        material.roughness = roughness;
+                                    material.needsUpdate = true;
+                    });
+                                    document.getElementById('material-roughness-value').textContent = roughness.toFixed(2);
+                }
+
+                                    function loadDesign(input) {
+                                        console.log('🎨 loadDesign called', input);
+
+                                    const file = input.files[0];
+                                    if (!file) {
+                                        console.log('❌ No file selected');
+                                    return;
+                    }
+
+                                    console.log('📁 File selected:', file.name, file.type, file.size);
+
+                                    // Update file name display
+                                    const fileNameDiv = document.getElementById('file-name');
+                                    if (fileNameDiv) {
+                                        fileNameDiv.textContent = 'Seçilen: ' + file.name;
+                                    fileNameDiv.style.color = '#ffff00';
+                    }
+
+                                    // Check file type
+                                    if (!file.type.startsWith('image/')) {
+                                        alert('Lütfen sadece resim dosyası seçin (PNG, JPG, JPEG)');
+                                    console.log('❌ Invalid file type:', file.type);
+                                    return;
+                    }
+
+                    // Check file size (max 10MB)
+                    if (file.size > 10 * 1024 * 1024) {
+                                        alert('Dosya boyutu çok büyük! Maksimum 10MB olabilir.');
+                                    console.log('❌ File too large:', file.size);
+                                    return;
+                    }
+
+                                    const reader = new FileReader();
+
+                                    reader.onload = function(e) {
+                                        console.log('📖 File read successfully, loading texture...');
+
+                                    const loader = new THREE.TextureLoader();
+
+                                    loader.load(
+                                    e.target.result,
+                                    function(texture) {
+                                        console.log('✅ Texture loaded successfully!');
+
+                                    // Remove old design if exists
+                                    if (designMesh) {
+                                    if (designMesh.parent) {
+                                        designMesh.parent.remove(designMesh);
+                                    }
+                                    designMesh.geometry.dispose();
+                                    designMesh.material.dispose();
+                                    console.log('🗑️ Old design removed');
+                                }
+
+                                    // Smart design placement for GLB models
+                                    if (tshirt && tshirt.userData.body) {
+                                    // For GLB models, create a more adaptive design placement
+                                    const bodyMesh = tshirt.userData.body;
+                                    const boundingBox = new THREE.Box3().setFromObject(bodyMesh);
+                                    const size = boundingBox.getSize(new THREE.Vector3());
+                                    const center = boundingBox.getCenter(new THREE.Vector3());
+
+                                    // Create design plane that adapts to the T-shirt size
+                                    const designGeometry = new THREE.PlaneGeometry(size.x * 0.4, size.y * 0.4);
+
+                                    // Optimize texture for GLB models
+                                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                                    texture.wrapT = THREE.ClampToEdgeWrapping;
+                                    texture.minFilter = THREE.LinearFilter;
+                                    texture.magFilter = THREE.LinearFilter;
+                                    texture.flipY = false;
+
+                                    const designMaterial = new THREE.MeshStandardMaterial({
+                                        map: texture,
+                                    transparent: true,
+                                    alphaTest: 0.1,
+                                    roughness: 0.3,
+                                    metalness: 0.0,
+                                    side: THREE.FrontSide,
+                                    depthWrite: false
+                                    });
+
+                                    designMesh = new THREE.Mesh(designGeometry, designMaterial);
+
+                                    // Position design on the front center of the T-shirt
+                                    designMesh.position.copy(center);
+                                    designMesh.position.z += size.z * 0.51; // Slightly in front
+                                    designMesh.renderOrder = 1;
+
+                                    // Attach to T-shirt group for proper movement
+                                    tshirt.add(designMesh);
+                                    console.log('🎯 Design attached to GLB T-shirt body');
+                                } else {
+                                    // Fallback for procedural T-shirt
+                                    const designGeometry = new THREE.PlaneGeometry(0.8, 0.8);
+
+                                    texture.wrapS = THREE.ClampToEdgeWrapping;
+                                    texture.wrapT = THREE.ClampToEdgeWrapping;
+                                    texture.minFilter = THREE.LinearFilter;
+                                    texture.magFilter = THREE.LinearFilter;
+                                    texture.flipY = false;
+
+                                    const designMaterial = new THREE.MeshStandardMaterial({
+                                        map: texture,
+                                    transparent: true,
+                                    alphaTest: 0.1,
+                                    roughness: 0.4,
+                                    metalness: 0.0,
+                                    side: THREE.FrontSide,
+                                    depthWrite: false
+                                    });
+
+                                    designMesh = new THREE.Mesh(designGeometry, designMaterial);
+                                    designMesh.position.set(0, 0.2, 1.2);
+                                    designMesh.renderOrder = 1;
+
+                                    tshirt.add(designMesh);
+                                    console.log('🎯 Design attached to procedural T-shirt');
+                                }
+
+                                    designTexture = texture;
+
+                                    console.log('🎉 Design loaded and applied successfully!');
+
+                                    // Update file name with success
+                                    if (fileNameDiv) {
+                                        fileNameDiv.textContent = '✅ Yüklendi: ' + file.name;
+                                    fileNameDiv.style.color = '#00ff88';
+                                }
+
+                                    // Reset design controls to default
+                                    updateDesignScale(1.0);
+                                    updateDesignPosition();
+                                    updateDesignRotation(0);
+                            },
+                                    function(progress) {
+                                        console.log('⏳ Loading progress:', progress);
+                            },
+                                    function(error) {
+                                        console.error('❌ Texture loading error:', error);
+                                    alert('Resim yüklenirken hata oluştu. Lütfen başka bir resim deneyin.');
+                                    if (fileNameDiv) {
+                                        fileNameDiv.textContent = '❌ Hata: ' + file.name;
+                                    fileNameDiv.style.color = '#ff4444';
+                                }
+                            }
+                                    );
+                    };
+
+                                    reader.onerror = function(error) {
+                                        console.error('❌ FileReader error:', error);
+                                    alert('Dosya okuma hatası oluştu.');
+                                    if (fileNameDiv) {
+                                        fileNameDiv.textContent = '❌ Okuma hatası: ' + file.name;
+                                    fileNameDiv.style.color = '#ff4444';
+                        }
+                    };
+
+                                    reader.readAsDataURL(file);
+                }
+
+                                    function updateDesignScale(value) {
+                                        document.getElementById('design-scale-value').textContent = value;
+                                    if (designMesh) {
+                        // Scale only X and Z for cylinder geometry
+                        const scale = parseFloat(value);
+                                    designMesh.scale.set(scale, 1, scale);
+                                    console.log('🔧 Design scale updated:', scale);
+                    }
+                }
+
+                                    function updateDesignPosition() {
+                    const x = document.getElementById('design-x').value;
+                                    const y = document.getElementById('design-y').value;
+
+                                    document.getElementById('design-x-value').textContent = x;
+                                    document.getElementById('design-y-value').textContent = y;
+
+                                    if (designMesh) {
+                                        // For cylinder geometry, Y is vertical position
+                                        designMesh.position.set(0, 0.2 + parseFloat(y), 0);
+                                    // Rotation around Y for horizontal positioning
+                                    const rotationOffset = parseFloat(x) * 2; // Convert X to rotation
+                                    designMesh.rotation.y = (Math.PI / 2) + rotationOffset;
+                                    console.log('🔧 Design position updated:', x, y);
+                    }
+                }
+
+                                    function updateDesignRotation(value) {
+                                        document.getElementById('design-rotation-value').textContent = value + '°';
+                                    if (designMesh) {
+                        // Apply rotation around Z axis for tilting the design
+                        const rotation = (value * Math.PI) / 180;
+                                    designMesh.rotation.z = rotation;
+                                    console.log('🔧 Design rotation updated:', value + '°');
+                    }
+                }
+
+                                    function resetDesign() {
+                    if (designMesh) {
+                        // Properly remove and dispose of design
+                        if (designMesh.parent) {
+                                        designMesh.parent.remove(designMesh);
+                        }
+                                    designMesh.geometry.dispose();
+                                    designMesh.material.dispose();
+                                    designMesh = null;
+                                    console.log('🗑️ Design mesh removed and disposed');
+                    }
+
+                                    // Reset sliders
+                                    document.getElementById('design-scale').value = 1.0;
+                                    document.getElementById('design-x').value = 0;
+                                    document.getElementById('design-y').value = 0;
+                                    document.getElementById('design-rotation').value = 0;
+
+                                    // Update display values
+                                    updateDesignScale(1.0);
+                                    updateDesignPosition();
+                                    updateDesignRotation(0);
+
+                                    // Reset file inputs
+                                    document.getElementById('design-input').value = '';
+                                    document.getElementById('design-input-direct').value = '';
+
+                                    // Reset file name display
+                                    const fileNameDiv = document.getElementById('file-name');
+                                    if (fileNameDiv) {
+                                        fileNameDiv.textContent = '';
+                    }
+
+                                    // Reset T-shirt color to white
+                                    setTshirtColor('#ffffff');
+
+                                    console.log('🔄 Design reset complete!');
+                }
+
+                                    function exportImage() {
+                    const canvas = renderer.domElement;
+                                    const link = document.createElement('a');
+                                    link.download = 'tshirt-mockup-' + Date.now() + '.png';
+                                    link.href = canvas.toDataURL();
+                                    link.click();
+                }
+
+                                    function onWindowResize() {
+                    const container = document.querySelector('.canvas-container');
+                                    camera.aspect = container.clientWidth / container.clientHeight;
+                                    camera.updateProjectionMatrix();
+                                    renderer.setSize(container.clientWidth, container.clientHeight);
+                }
+
+                                    // Color picker handler
+                                    document.getElementById('tshirt-color').addEventListener('change', function(e) {
+                                        setTshirtColor(e.target.value);
+                });
+
+                                    // Drag & Drop functionality
+                                    function initDragDrop() {
+                    const dropZone = document.querySelector('.file-upload');
+                    
+                    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                                        dropZone.addEventListener(eventName, preventDefaults, false);
+                    });
+
+                                    function preventDefaults(e) {
+                                        e.preventDefault();
+                                    e.stopPropagation();
+                    }
+                    
+                    ['dragenter', 'dragover'].forEach(eventName => {
+                                        dropZone.addEventListener(eventName, highlight, false);
+                    });
+                    
+                    ['dragleave', 'drop'].forEach(eventName => {
+                                        dropZone.addEventListener(eventName, unhighlight, false);
+                    });
+
+                                    function highlight(e) {
+                                        dropZone.style.background = 'rgba(0,255,136,0.2)';
+                                    dropZone.style.borderColor = '#00ff88';
+                    }
+
+                                    function unhighlight(e) {
+                                        dropZone.style.background = 'rgba(255,255,255,0.1)';
+                                    dropZone.style.borderColor = 'rgba(255,255,255,0.5)';
+                    }
+
+                                    dropZone.addEventListener('drop', handleDrop, false);
+
+                                    function handleDrop(e) {
+                        const dt = e.dataTransfer;
+                                    const files = dt.files;
+                        
+                        if (files.length > 0) {
+                            const input = document.getElementById('design-input');
+                                    input.files = files;
+                                    loadDesign(input);
+                        }
+                    }
+                }
+
+                                    // Initialize
+                                    initThreeJS();
+                                    initDragDrop();
+                                </script>
+                            </body>
+                        </html>
+                        `);
+});
+
+// API Routes
+app.get('/api/test', (req, res) => {
+                            res.json({
+                                message: 'API başarıyla çalışıyor! 🎉',
+                                timestamp: new Date().toISOString(),
+                                status: 'success'
+                            });
+});
+
+                        // Use routes
+                        app.use('/api/users', usersRouter);
+                        app.use('/api/3d', hunyuan3dRouter);
+
+// 404 handler
+app.use('*', (req, res) => {
+                            res.status(404).json({
+                                error: 'Sayfa bulunamadı',
+                                message: 'Aradığınız endpoint mevcut değil.'
+                            });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+                            console.error(err.stack);
+                        res.status(500).json({
+                            error: 'Sunucu hatası',
+                        message: 'Bir şeyler ters gitti!'
+    });
+});
+
+app.listen(PORT, () => {
+                            console.log(`🚀 Server ${PORT} portunda çalışıyor!`);
+                        console.log(`📱 Uygulamayı görüntülemek için: http://localhost:${PORT}`);
+                        console.log(`🔧 API test için: http://localhost:${PORT}/api/test`);
+}); 
